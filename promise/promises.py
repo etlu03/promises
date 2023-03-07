@@ -148,7 +148,6 @@ def int_precondition(testbench, invariant):
   if invariant[2] is None:
     for i in range(len(testbench)):
       testbench[i].append(random.randint(lowerbound, upperbound))
-    
     return
     
   if re.search(r"<.*<", invariant[2]) is not None:
@@ -198,7 +197,36 @@ def int_precondition(testbench, invariant):
 
     upperbound = int(upperbound.strip())
     lowerbound = int(lowerbound.strip())
+  
+  elif re.search(r"<=", invariant[2]) is not None:
+    tokens = [tok.strip() for tok in re.split(r"<=", invariant[2])]
+    print(tokens)
+    if tokens[0].isdigit():
+      lowerbound = int(tokens[0])
+    elif tokens[-1].isdigit():
+      upperbound = int(tokens[-1])
+  
+  elif re.search(r">=", invariant[2]) is not None:
+    tokens = [tok.strip() for tok in re.split(r">=", invariant[2])]
+    if tokens[0].isdigit():
+      upperbound = int(tokens[0])
+    elif tokens[-1].isdigit():
+      lowerbound = int(tokens[-1])
 
+  elif re.search(r"<", invariant[2]) is not None:
+    tokens = [tok.strip() for tok in re.split(r"<", invariant[2])]
+    if tokens[0].isdigit():
+      lowerbound = int(tokens[0]) + 1
+    elif tokens[-1].isdigit():
+      upperbound = int(tokens[-1]) - 1
+    
+  elif re.search(r">", invariant[2]) is not None:
+    tokens = [tok.strip() for tok in re.split(r">", invariant[2])]
+    if tokens[0].isdigit():
+      upperbound = int(tokens[0]) - 1
+    elif tokens[-1].isdigit():
+      lowerbound = int(tokens[-1]) + 1
+  
   for i in range(len(testbench)):
     testbench[i].append(random.randint(lowerbound, upperbound))
 
@@ -236,3 +264,9 @@ def restore(retval):
     return retval
 
   return eval(retval)
+
+@cotton("100 < x")
+def f(x: int, y: int, z: int) -> int:
+  return x
+
+f(1, 1, 1)
