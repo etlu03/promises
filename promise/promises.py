@@ -2,14 +2,18 @@ import functools
 import re
 import inspect
 import sys
+import random
 
 from typing import Callable
 
 class PreconditionFailure(Exception):
-  '''Precondition Unexpectedly Failure'''
+  '''Precondition unexpectedly failed'''
   
 class PostconditionFailure(Exception):
-  '''Postcondition Unexpectedly Failure'''
+  '''Postcondition unexpectedly failed'''
+
+class CottonFailure(Exception):
+  '''Fuzzer discovered an error'''
 
 class IncompleteSignatureError(Exception):
   '''Function signature is not fully typed'''
@@ -20,6 +24,9 @@ class ParameterCountError(Exception):
 class InvalidFunctionError(Exception):
   '''The provided parameter is not callable'''
 
+class UnsupportedTypeError(Exception):
+  '''`cotton()` recieved an unsupported type'''
+
 class InvalidContractError(Exception):
   '''Contract is not safe'''
 
@@ -27,6 +34,7 @@ seperators = r"[(,):\->]"
 types = frozenset({"int", "float", "complex", "str", "list", "tuple", "range",
                    "bytes", "bytearray", "memoryview", "dict", "bool", "set",
                    "frozenset"})
+cotton_types = frozenset({"int"})
 
 def requires(*expected_args):
   def decorator_requires(func):
@@ -93,17 +101,24 @@ def cotton(*expected_args):
   def decorator_cotton(func):
     @functools.wraps(func)
     def wrapper_cotton(*args, **kwargs):
-      pass
+      if 1 < len(expected_args):
+        raise ParameterCountError("`cotton()` only takes to one parameter")
+      
+      signature = parse_signature(func)
+      if signature is None:
+        raise IncompleteSignatureError("The `ensures()` function header has type-defined inputs")
+      
+      testbench = create_testbench(signature, expected_args[0])
+      if testbench is None:
+        raise UnsupportedTypeError("`cotton()` recieved an unsupported type")
+      
+      return None
 
     return wrapper_cotton
   return decorator_cotton
 
 def retrieve_signature(func, args):
-  header = str(inspect.signature(func))
-  parameters = ((re.sub(seperators, '', header)).split())[:-1]
-  
-  signature = {parameters[i]: parameters[i + 1]
-               for i in range(0, len(parameters) - 1, 2)}
+  signature = parse_signature(func)
   
   for i, key in enumerate(signature):
     if signature[key] not in types:
@@ -113,11 +128,101 @@ def retrieve_signature(func, args):
       
   return signature
 
+def parse_signature(func):
+  header = str(inspect.signature(func))
+  parameters = ((re.sub(seperators, '', header)).split())[:-1]
+
+  signature = {parameters[i]: parameters[i + 1]
+               for i in range(0, len(parameters) - 1, 2)}
+
+  return signature
+
 def create_expression(signature, contract):
   for key in signature:
     contract = re.sub(rf"\b{key}\b", stringify(signature[key]), contract)
   
   return contract
+  
+def int_precondition(testbench, invariant):
+  lowerbound, upperbound = -sys.maxsize - 1, sys.maxsize
+  if invariant[2] is None:
+    for i in range(len(testbench)):
+      testbench[i].append(random.randint(lowerbound, upperbound))
+    
+    return
+    
+  if re.search(r"<.*<", invariant[2]) is not None:
+    lowerbound, upperbound = re.split(r"<.*<", invariant[2])
+
+    lowerbound = int(lowerbound.strip()) + 1
+    upperbound = int(upperbound.strip()) - 1
+  
+  elif re.search(r"<=.*<", invariant[2]) is not None:
+    lowerbound, upperbound = re.split(r"<=.*<", invariant[2])
+
+    lowerbound = int(lowerbound.strip())
+    upperbound = int(upperbound.strip()) - 1
+  
+  elif re.search(r"<.*<=", invariant[2]) is not None:
+    lowerbound, upperbound = re.split(r"<.*<=", invariant[2])
+
+    lowerbound = int(lowerbound.strip()) + 1
+    upperbound = int(upperbound.strip())
+  
+  elif re.search(r"<=.*<=", invariant[2]) is not None:
+    lowerbound, upperbound = re.split(r"<=.*<=", invariant[2])
+
+    lowerbound = int(lowerbound.strip())
+    upperbound = int(upperbound.strip())
+  
+  elif re.search(r">.*>", invariant[2]) is not None:
+    upperbound, lowerbound = re.split(r">.*>", invariant[2])
+
+    upperbound = int(upperbound.strip()) + 1
+    lowerbound = int(lowerbound.strip()) - 1
+  
+  elif re.search(r">=.*>", invariant[2]) is not None:
+    upperbound, lowerbound = re.split(r">=.*>", invariant[2])
+
+    upperbound = int(upperbound.strip())
+    lowerbound = int(lowerbound.strip()) - 1
+  
+  elif re.search(r">.*>=", invariant[2]) is not None:
+    upperbound, lowerbound = re.split(r">.*>=", invariant[2])
+
+    upperbound = int(upperbound.strip()) + 1
+    lowerbound = int(lowerbound.strip())
+  
+  elif re.search(r">=.*>=", invariant[2]) is not None:
+    upperbound, lowerbound = re.split(r">=.*>=", invariant[2])
+
+    upperbound = int(upperbound.strip())
+    lowerbound = int(lowerbound.strip())
+
+  for i in range(len(testbench)):
+    testbench[i].append(random.randint(lowerbound, upperbound))
+
+def create_testbench(signature, contract):
+  testbench = [[] for _ in range(100)]
+  for var in signature:
+    if signature[var] not in cotton_types:
+      return None
+    
+  preconditions = [condition.strip() for condition in re.split(r"\bor\b|\band\b", contract)]
+  variables = list()
+  for var in signature:
+    for invariant in preconditions:
+      if var in invariant:
+        variables.append((var, signature[var], invariant))
+        break
+    else:
+      variables.append((var, signature[var], None))
+  
+  for invariant in variables:
+    if invariant[1] == "int":
+      int_precondition(testbench, invariant)
+
+  return testbench
 
 def stringify(val):
   if isinstance(val, str):
