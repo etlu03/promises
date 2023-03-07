@@ -13,7 +13,7 @@ class PostconditionFailure(Exception):
   '''Postcondition unexpectedly failed'''
 
 class CottonFailure(Exception):
-  '''Fuzzer discovered an error'''
+  '''Fuzzer has crashed'''
 
 class IncompleteSignatureError(Exception):
   '''Function signature is not fully typed'''
@@ -112,6 +112,17 @@ def cotton(*expected_args):
       if testbench is None:
         raise UnsupportedTypeError("`cotton()` recieved an unsupported type")
       
+      errors = list()
+      for test in testbench:
+        test = tuple(test)
+        try:
+          func(*test, **kwargs)
+        except:
+          errors.append(f"{func.__name__} failed on *arg={test}")
+
+      if len(errors) != 0:
+        raise CottonFailure("Fuzzer has crashed")
+
       return None
 
     return wrapper_cotton
@@ -150,6 +161,13 @@ def int_precondition(testbench, invariant):
       testbench[i].append(random.randint(lowerbound, upperbound))
     return
     
+  if re.search(r"==", invariant[2]) is not None:
+    tokens = [tok.strip() for tok in re.split(r"==", invariant[2])]
+    if tokens[0].isdigit():
+      lowerbound = upperbound = int(tokens[0])
+    elif tokens[-1].isdigit():
+      lowerbound = upperbound = int(tokens[-1])
+
   if re.search(r"<.*<", invariant[2]) is not None:
     lowerbound, upperbound = re.split(r"<.*<", invariant[2])
 
@@ -229,7 +247,7 @@ def int_precondition(testbench, invariant):
   
   for i in range(len(testbench)):
     testbench[i].append(random.randint(lowerbound, upperbound))
-
+  
 def create_testbench(signature, contract):
   testbench = [[] for _ in range(100)]
   for var in signature:
@@ -249,7 +267,7 @@ def create_testbench(signature, contract):
   for invariant in variables:
     if invariant[1] == "int":
       int_precondition(testbench, invariant)
-
+    
   return testbench
 
 def stringify(val):
@@ -265,8 +283,8 @@ def restore(retval):
 
   return eval(retval)
 
-@cotton("100 < x")
+@cotton("100 == x")
 def f(x: int, y: int, z: int) -> int:
   return x
 
-f(1, 1, 1)
+f(1, 1)
