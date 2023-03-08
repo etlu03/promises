@@ -13,19 +13,19 @@ class PostconditionFailure(Exception):
   '''Postcondition unexpectedly failed'''
 
 class CottonFailure(Exception):
-  '''Fuzzer has crashed'''
+  '''Fuzzer unexpectedly crashed'''
 
 class IncompleteSignatureError(Exception):
   '''Function signature is not fully typed'''
 
 class ParameterCountError(Exception):
-  '''The number of provided parameters is greater than two'''
+  '''Function was given too many parameters'''
 
 class InvalidFunctionError(Exception):
   '''The provided parameter is not callable'''
 
 class UnsupportedTypeError(Exception):
-  '''`cotton()` recieved an unsupported type'''
+  '''Recieved an unsupported type'''
 
 class InvalidContractError(Exception):
   '''Contract is not safe'''
@@ -105,6 +105,9 @@ def cotton(*expected_args):
       if len(expected_args) != 1:
         raise ParameterCountError("`cotton()` takes one parameter")
       
+      if len(args) != 0:
+        raise ParameterCountError("Function should have no parameters")
+      
       signature = parse_signature(func)
       if signature is None:
         raise IncompleteSignatureError("The `ensures()` function header has type-defined inputs")
@@ -172,7 +175,7 @@ def restore(retval):
   return eval(retval)
 
 def int_precondition(testbench, invariant):
-  lowerbound, upperbound = -sys.maxsize - 1, sys.maxsize
+  lowerbound, upperbound = -1000, 1000
   if invariant[2] is None:
     for i in range(len(testbench)):
       testbench[i].append(random.randint(lowerbound, upperbound))
@@ -453,7 +456,7 @@ def str_precondition(testbench, invariant):
         testbench[k] = [string]
     
 def create_testbench(signature, contract):
-  testbench = [[] for _ in range(10000)]
+  testbench = [[] for _ in range(100000)]
   for var in signature:
     if signature[var] not in cotton_types:
       return None
