@@ -101,8 +101,9 @@ def cotton(*expected_args):
   def decorator_cotton(func):
     @functools.wraps(func)
     def wrapper_cotton(*args, **kwargs):
-      if 1 < len(expected_args):
-        raise ParameterCountError("`cotton()` only takes to one parameter")
+
+      if len(expected_args) != 1:
+        raise ParameterCountError("`cotton()` takes one parameter")
       
       signature = parse_signature(func)
       if signature is None:
@@ -112,16 +113,19 @@ def cotton(*expected_args):
       if testbench is None:
         raise UnsupportedTypeError("`cotton()` recieved an unsupported type")
       
-      errors = list()
+      errors = set()
       for test in testbench:
         test = tuple(test)
         try:
           func(*test, **kwargs)
         except:
-          errors.append(f"{func.__name__} failed on *arg={test}")
+          errors.add(f"Cotton caught an crash on {func.__name__} on *arg = {test}")
 
       if len(errors) != 0:
-        raise CottonFailure("Fuzzer has crashed")
+        print("----------------------------------------------------------------")
+        for e in errors:
+          print(e)
+        print("----------------------------------------------------------------")
 
       return None
 
@@ -153,14 +157,27 @@ def create_expression(signature, contract):
     contract = re.sub(rf"\b{key}\b", stringify(signature[key]), contract)
   
   return contract
+
+def stringify(val):
+  if isinstance(val, str):
+    val = "'" + val + "'"
   
+  return str(val)
+
+def restore(retval):
+  if retval[0] == '"' and retval[-1] == '"':
+    retval = retval[1: -2]
+    return retval
+
+  return eval(retval)
+
 def int_precondition(testbench, invariant):
   lowerbound, upperbound = -sys.maxsize - 1, sys.maxsize
   if invariant[2] is None:
     for i in range(len(testbench)):
       testbench[i].append(random.randint(lowerbound, upperbound))
     return
-    
+
   if re.search(r"==", invariant[2]) is not None:
     tokens = [tok.strip() for tok in re.split(r"==", invariant[2])]
     if tokens[0].isdigit():
@@ -218,7 +235,6 @@ def int_precondition(testbench, invariant):
       
   elif re.search(r"<=", invariant[2]) is not None:
     tokens = [tok.strip() for tok in re.split(r"<=", invariant[2])]
-    print(tokens)
     if tokens[0].isdigit():
       lowerbound = int(tokens[0])
     elif tokens[-1].isdigit():
@@ -249,48 +265,63 @@ def int_precondition(testbench, invariant):
     testbench[i].append(random.randint(lowerbound, upperbound))
   
 def str_precondition(testbench, invariant):
-  lowerbound, upperbound = 0, 1000
+  lowerbound, upperbound = 0, 50
   if invariant[2] is None:
     for i in range(len(testbench)):
       testbench[i].append(random.randint(lowerbound, upperbound))
     return
     
+  inequality_flag = in_flag = not_in_flag = False
   if re.search(r"==", invariant[2]) is not None:
-    tokens = [tok.strip() for tok in re.split(r"==", invariant[2])]
-    if tokens[0].isdigit():
-      lowerbound = upperbound = int(tokens[0])
-    elif tokens[-1].isdigit():
-      lowerbound = upperbound = int(tokens[-1])
+    tokens = [re.sub(r"[\'| |\"]", "", tok) for tok in re.split(r"==", invariant[2])]
+    if tokens[0] == invariant[0]:
+      saved = tokens[-1]
+    else:
+      saved = tokens[0]
+    
+    for i in range(len(testbench)):
+      testbench[i].append(saved)
+    return
   
   elif re.search(r"<=.*<=", invariant[2]) is not None:
     lowerbound, upperbound = re.split(r"<=.*<=", invariant[2])
 
     lowerbound = int(lowerbound.strip())
     upperbound = int(upperbound.strip())
+
+    inequality_flag = True
   
   elif re.search(r">=.*>=", invariant[2]) is not None:
     upperbound, lowerbound = re.split(r">=.*>=", invariant[2])
 
     upperbound = int(upperbound.strip())
     lowerbound = int(lowerbound.strip())
+
+    inequality_flag = True
   
   elif re.search(r"<.*<=", invariant[2]) is not None:
     lowerbound, upperbound = re.split(r"<.*<=", invariant[2])
 
     lowerbound = int(lowerbound.strip()) + 1
     upperbound = int(upperbound.strip())
+
+    inequality_flag = True
   
   elif re.search(r"<=.*<", invariant[2]) is not None:
     lowerbound, upperbound = re.split(r"<=.*<", invariant[2])
 
     lowerbound = int(lowerbound.strip())
     upperbound = int(upperbound.strip()) - 1
+
+    inequality_flag = True
   
   elif re.search(r">=.*>", invariant[2]) is not None:
     upperbound, lowerbound = re.split(r">=.*>", invariant[2])
 
     upperbound = int(upperbound.strip())
     lowerbound = int(lowerbound.strip()) - 1
+
+    inequality_flag = True
   
   elif re.search(r">.*>=", invariant[2]) is not None:
     upperbound, lowerbound = re.split(r">.*>=", invariant[2])
@@ -298,25 +329,32 @@ def str_precondition(testbench, invariant):
     upperbound = int(upperbound.strip()) + 1
     lowerbound = int(lowerbound.strip())
 
+    inequality_flag = True
+
   elif re.search(r"<.*<", invariant[2]) is not None:
     lowerbound, upperbound = re.split(r"<.*<", invariant[2])
 
     lowerbound = int(lowerbound.strip()) + 1
     upperbound = int(upperbound.strip()) - 1
+
+    inequality_flag = True
         
   elif re.search(r">.*>", invariant[2]) is not None:
     upperbound, lowerbound = re.split(r">.*>", invariant[2])
 
     upperbound = int(upperbound.strip()) + 1
     lowerbound = int(lowerbound.strip()) - 1
+
+    inequality_flag = True
       
   elif re.search(r"<=", invariant[2]) is not None:
     tokens = [tok.strip() for tok in re.split(r"<=", invariant[2])]
-    print(tokens)
     if tokens[0].isdigit():
       lowerbound = int(tokens[0])
     elif tokens[-1].isdigit():
       upperbound = int(tokens[-1])
+
+    inequality_flag = True
   
   elif re.search(r">=", invariant[2]) is not None:
     tokens = [tok.strip() for tok in re.split(r">=", invariant[2])]
@@ -324,6 +362,8 @@ def str_precondition(testbench, invariant):
       upperbound = int(tokens[0])
     elif tokens[-1].isdigit():
       lowerbound = int(tokens[-1])
+    
+    inequality_flag = True
 
   elif re.search(r"<", invariant[2]) is not None:
     tokens = [tok.strip() for tok in re.split(r"<", invariant[2])]
@@ -332,32 +372,92 @@ def str_precondition(testbench, invariant):
     elif tokens[-1].isdigit():
       upperbound = int(tokens[-1]) - 1
     
+    inequality_flag = True
+    
   elif re.search(r">", invariant[2]) is not None:
     tokens = [tok.strip() for tok in re.split(r">", invariant[2])]
     if tokens[0].isdigit():
       upperbound = int(tokens[0]) - 1
     elif tokens[-1].isdigit():
       lowerbound = int(tokens[-1]) + 1
+    
+    inequality_flag = True
   
-  for i in range(len(testbench)):
-    string = str()
-    length = random.randint(lowerbound, upperbound)
-    for _ in range(length):
-      lower = random.randint(0, 1)
-      if lower == 0:
-        string += chr(random.randint(65, 90))
-      else:
-        string += chr(random.randint(97, 122))
-    testbench[i].append(string)
-  
-  print(testbench)
+  elif re.search(r"\bnot in\b", invariant[2]) is not None:
+    tokens = [re.sub(r"[\'| |\"]", "", tok) for tok in re.split(r"\bnot in\b", invariant[2])]
+    banned = tokens[0]
 
+    not_in_flag = True
+
+  elif re.search(r"\bin\b", invariant[2]) is not None:
+    tokens = [re.sub(r"[\'| |\"]", "", tok) for tok in re.split(r"\bin\b", invariant[2])]
+    saved = tokens[0]
+
+    in_flag = True
+  
+  if inequality_flag:
+    for i in range(len(testbench)):
+      string = str()
+      length = random.randint(lowerbound, upperbound)
+      for _ in range(length):
+        lower = random.randint(0, 1)
+        if lower == 0:
+          string += chr(random.randint(65, 90))
+        else:
+          string += chr(random.randint(97, 122))
+      testbench[i].append(string)
+    
+  if in_flag:
+    for i in range(len(testbench)):
+      string = str()
+      length = random.randint(lowerbound, upperbound - len(saved))
+
+      if length == 0:
+        length = 1
+
+      insert = random.randint(0, length - 1)
+      for j in range(length):
+        if j != insert:
+          lower = random.randint(0, 1)
+          if lower == 0:
+            string += chr(random.randint(65, 90))
+          else:
+            string += chr(random.randint(97, 122))
+        else:
+          string += saved
+      testbench[i].append(string)
+  
+  if not_in_flag:
+    for i in range(len(testbench)):
+      string = str()
+      length = random.randint(lowerbound, upperbound)
+      for _ in range(length):
+        lower = random.randint(0, 1)
+        if lower == 0:
+          string += chr(random.randint(65, 90))
+        else:
+          string += chr(random.randint(97, 122))
+
+      testbench[i].append(string)
+    
+    for k in range(len(testbench)):
+      while banned in testbench[k]:
+        length = len(testbench[k])
+        for _ in range(length):
+          lower = random.randint(0, 1)
+          if lower == 0:
+            string += chr(random.randint(65, 90))
+          else:
+            string += chr(random.randint(97, 122))
+
+        testbench[k] = [string]
+    
 def create_testbench(signature, contract):
-  testbench = [[] for _ in range(100)]
+  testbench = [[] for _ in range(10000)]
   for var in signature:
     if signature[var] not in cotton_types:
       return None
-    
+
   preconditions = [condition.strip() for condition in re.split(r"\bor\b|\band\b", contract)]
   variables = list()
   for var in signature:
@@ -373,24 +473,5 @@ def create_testbench(signature, contract):
       int_precondition(testbench, invariant)
     elif invariant[1] == "str":
       str_precondition(testbench, invariant)
-    
-  return testbench
-
-def stringify(val):
-  if isinstance(val, str):
-    val = "'" + val + "'"
   
-  return str(val)
-
-def restore(retval):
-  if retval[0] == '"' and retval[-1] == '"':
-    retval = retval[1: -2]
-    return retval
-
-  return eval(retval)
-
-@cotton("0 < len(s) < 2")
-def f(s: str) -> str:
-  return s
-
-f("hello")
+  return testbench

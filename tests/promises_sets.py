@@ -1,5 +1,5 @@
 ###############################################################################
-# @file  basic_sets.py
+# @file  promises_sets.py
 # @brief The following test cases apply the `promises` package againist
 #        function that manipulate sets and dictionaries
 ###############################################################################
@@ -101,7 +101,7 @@ def main() -> None:
   f = frequency(s)
   assert(f == Counter(s))
 
-  print("No contract fails in basic_set.py. This is good")
+  print("No contract fails in promises_set.py. This is good")
 
 if __name__ == "__main__":
   main()

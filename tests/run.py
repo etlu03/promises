@@ -1,13 +1,13 @@
-import basic_lists, basic_math, basic_sets, basic_strings
-import advanced_functions, advanced_mixed
+import promises_lists, promises_math, promises_sets, promises_strings
+import promises_functions, promises_mixed
 
 if __name__ == "__main__":
-  print("Running basic_list.py", end=" ... "); basic_lists.main()
-  print("Running basic_math.py", end=" ... "); basic_math.main()
-  print("Running basic_sets.py", end=" ... "); basic_sets.main()
-  print("Running basic_strings.py", end=" ... "); basic_strings.main()
+  print("Running promises_list.py", end=" ... "); promises_lists.main()
+  print("Running promises_math.py", end=" ... "); promises_math.main()
+  print("Running promises_sets.py", end=" ... "); promises_sets.main()
+  print("Running promises_strings.py", end=" ... "); promises_strings.main()
 
   print()
 
-  print("Running advanced_functions.py", end=" ... "); advanced_functions.main()
-  print("Running advanced_mixed.py", end=" ... "); advanced_mixed.main()
+  print("Running promises_functions.py", end=" ... "); promises_functions.main()
+  print("Running promises_mixed.py", end=" ... "); promises_mixed.main()

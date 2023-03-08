@@ -1,5 +1,5 @@
 ###############################################################################
-# @file  advanced_functions.py
+# @file  promises_functions.py
 # @brief The following test cases apply the `promises` package againist
 #        function that need additional helper functions for verification
 ###############################################################################
@@ -81,7 +81,7 @@ def main():
   except:
     pass
 
-  print("No contract fails in advanced_function.py. This is good")
+  print("No contract fails in promises_function.py. This is good")
 
 if __name__ == "__main__":
   main()

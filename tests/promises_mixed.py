@@ -1,5 +1,5 @@
 ###############################################################################
-# @file  advanced_mixed.py
+# @file  promises_mixed.py
 # @brief The following test cases apply the `promises` package againist
 #        a mix of function while still ensuring correct behavior
 ###############################################################################
@@ -115,7 +115,7 @@ def main() -> None:
   unnecessary_contracts(3)
   unnecessary_contracts(4)
 
-  print("No contract fails in advanced_mixed.py. This is good")
+  print("No contract fails in promises_mixed.py. This is good")
 
 if __name__ == "__main__":
   main()

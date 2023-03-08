@@ -1,5 +1,5 @@
 ###############################################################################
-# @file  basic_lists.py
+# @file  promises_lists.py
 # @brief The following test cases apply the `promises` package againist
 #        function that manipulate lists
 ###############################################################################
@@ -79,7 +79,7 @@ def main() -> None:
   except:
     pass
 
-  print("No contract fails in basic_lists.py. This is good")
+  print("No contract fails in promises_lists.py. This is good")
   
 if __name__ == "__main__":
   main()

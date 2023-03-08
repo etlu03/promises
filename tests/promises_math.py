@@ -1,5 +1,5 @@
 ###############################################################################
-# @file  basic_math.py
+# @file  promises_math.py
 # @brief The following test cases apply the `promises` package againist
 #        function with simple contracts
 ###############################################################################
@@ -88,7 +88,7 @@ def main() -> None:
   except:
     pass
 
-  print("No contract fails in basic_math.py. This is good")
+  print("No contract fails in promises_math.py. This is good")
 
 if __name__ == "__main__":
   main()
